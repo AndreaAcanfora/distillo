@@ -64,8 +64,8 @@ def test_cli_to_file(patched: FakeLLM, tmp_path: Path) -> None:
         ],
     )
     assert result.exit_code == 0, result.output
-    assert out.read_text().count("**") >= 4
-    assert srt.read_text().startswith("1\n00:00:00,000 --> ")
+    assert out.read_text(encoding="utf-8").count("**") >= 4
+    assert srt.read_text(encoding="utf-8").startswith("1\n00:00:00,000 --> ")
 
 
 def test_cli_json_stdout(patched: FakeLLM) -> None:
