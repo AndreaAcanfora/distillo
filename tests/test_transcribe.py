@@ -86,3 +86,33 @@ def test_format_clock() -> None:
     assert format_clock(3723) == "1:02:03"
     with pytest.raises(ValueError, match="timestamp"):
         parse_clock("soon")
+
+
+def test_rolling_youtube_captions_are_not_repeated() -> None:
+    blank = " "  # YouTube puts a whitespace-only line in its rolling cues
+    vtt = "\n".join(
+        [
+            "WEBVTT",
+            "Kind: captions",
+            "Language: it",
+            "",
+            "00:00:00.160 --> 00:00:02.990 align:start position:0%",
+            blank,
+            "oggi<00:00:00.480><c> parliamo</c><00:00:00.800><c> di</c><00:00:01.000><c> Bayes</c>",
+            "",
+            "00:00:02.990 --> 00:00:03.000 align:start position:0%",
+            "oggi parliamo di Bayes",
+            blank,
+            "",
+            "00:00:03.000 --> 00:00:05.270 align:start position:0%",
+            "oggi parliamo di Bayes",
+            "e<00:00:03.360><c> del</c><00:00:03.600><c> teorema</c>",
+            "",
+            "00:00:05.270 --> 00:00:05.280 align:start position:0%",
+            "e del teorema",
+            blank,
+        ]
+    )
+    transcript = parse_subtitles(vtt)
+    assert [s.text for s in transcript.segments] == ["oggi parliamo di Bayes", "e del teorema"]
+    assert transcript.segments[1].start == 3.0

@@ -208,15 +208,42 @@ def test_groq_transcription(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
     assert sent["data"]["language"] == "it"
 
 
-def test_groq_transcription_size_limit(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_large_recordings_are_split_and_timestamps_shifted(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from distillo import audio
+
+    monkeypatch.setenv("GROQ_API_KEY", "g")
+    big = tmp_path / "long.mp3"
+    big.write_bytes(b"x")
+    first, second = tmp_path / "p1.ogg", tmp_path / "p2.ogg"
+    first.write_bytes(b"1")
+    second.write_bytes(b"2")
+    monkeypatch.setattr(
+        audio,
+        "prepare_for_upload",
+        lambda *a, **k: [audio.Part(first, 0.0), audio.Part(second, 3600.0)],
+    )
+    segment = {"start": 1.0, "end": 2.0, "text": "ciao"}
+    recorder = Recorder(
+        httpx.Response(200, json={"language": "italian", "segments": [segment]}),
+        httpx.Response(200, json={"language": "italian", "segments": [segment]}),
+    )
+    monkeypatch.setattr(httpx, "post", recorder)
+    transcript = load_transcript(big, transcriber="groq")
+    assert [s.start for s in transcript.segments] == [1.0, 3601.0]
+    assert len(recorder.requests) == 2
+
+
+def test_unreadable_large_file(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     from distillo.providers import groq
 
     monkeypatch.setenv("GROQ_API_KEY", "g")
     monkeypatch.setattr(groq, "MAX_UPLOAD_BYTES", 4)
-    audio = tmp_path / "long.mp3"
-    audio.write_bytes(b"0123456789")
-    with pytest.raises(TranscriptionError, match="25 MB"):
-        load_transcript(audio, transcriber="groq")
+    audio_file = tmp_path / "long.mp3"
+    audio_file.write_bytes(b"0123456789")
+    with pytest.raises(TranscriptionError, match="cannot read the audio"):
+        load_transcript(audio_file, transcriber="groq")
 
 
 def test_auto_retries_little_before_falling_back(monkeypatch: pytest.MonkeyPatch) -> None:

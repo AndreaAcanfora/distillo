@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import re
+import tempfile
 from pathlib import Path
 
 from .models import Segment, Transcript
@@ -56,21 +57,31 @@ def load_transcript(
 
 
 def parse_subtitles(text: str) -> Transcript:
-    """Parse SRT or WebVTT. Consecutive duplicate lines (common in auto captions) are dropped."""
+    """Parse SRT or WebVTT.
+
+    Rolling captions (YouTube's automatic ones) repeat the previous line at the top of
+    each cue; lines already shown in the previous cue are dropped so text appears once.
+    """
     segments: list[Segment] = []
+    previous: list[str] = []
     for block in re.split(r"\n\s*\n", text.replace("\r\n", "\n")):
         lines = [line for line in block.strip().split("\n") if line.strip()]
         for i, line in enumerate(lines):
             timing = _CUE_TIMING.match(line)
             if not timing:
                 continue
-            body = " ".join(_TAG.sub("", rest).strip() for rest in lines[i + 1 :]).strip()
-            if body and not (segments and segments[-1].text == body):
+            body = [cleaned for rest in lines[i + 1 :] if (cleaned := _TAG.sub("", rest).strip())]
+            fresh = list(body)
+            while fresh and fresh[0] in previous:
+                fresh.pop(0)
+            if body:
+                previous = body
+            if fresh:
                 segments.append(
                     Segment(
                         start=parse_clock(timing.group(1)),
                         end=parse_clock(timing.group(2)),
-                        text=body,
+                        text=" ".join(fresh),
                     )
                 )
             break
@@ -98,19 +109,34 @@ def transcribe_media(
 
 
 def transcribe_with_groq(path: Path, *, language: str | None) -> Transcript:
+    """Transcribe on Groq, compressing and splitting first when the file is over 25 MB."""
+    from .audio import AudioError, prepare_for_upload
     from .providers import LLMError
-    from .providers.groq import groq_transcribe
+    from .providers.groq import MAX_UPLOAD_BYTES, groq_transcribe
 
-    try:
-        body = groq_transcribe(path, language=language)
-    except LLMError as exc:
-        raise TranscriptionError(str(exc)) from exc
-    segments = [
-        Segment(start=float(s["start"]), end=float(s["end"]), text=str(s["text"]).strip())
-        for s in body.get("segments") or []
-        if str(s.get("text", "")).strip()
-    ]
-    return Transcript(segments=segments, language=body.get("language"))
+    segments: list[Segment] = []
+    detected: str | None = None
+    with tempfile.TemporaryDirectory(prefix="distillo-") as workdir:
+        try:
+            parts = prepare_for_upload(path, Path(workdir), max_bytes=MAX_UPLOAD_BYTES)
+        except AudioError as exc:
+            raise TranscriptionError(str(exc)) from exc
+        for part in parts:
+            try:
+                body = groq_transcribe(part.path, language=language)
+            except LLMError as exc:
+                raise TranscriptionError(str(exc)) from exc
+            detected = detected or body.get("language")
+            segments.extend(
+                Segment(
+                    start=part.offset + float(s["start"]),
+                    end=part.offset + float(s["end"]),
+                    text=str(s["text"]).strip(),
+                )
+                for s in body.get("segments") or []
+                if str(s.get("text", "")).strip()
+            )
+    return Transcript(segments=segments, language=detected)
 
 
 def transcribe_locally(path: Path, *, model_size: str, language: str | None) -> Transcript:
