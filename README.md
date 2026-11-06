@@ -24,7 +24,7 @@ $ distillo lezione-statistica.m4a --points 4 --lang it
 ```markdown
 # lezione-statistica.m4a
 
-**4 nozioni chiave** (su 17) · 48:12 · `gemini:gemini-3.8-flash`
+**4 nozioni chiave** (su 17) · 48:12 · `gemini:gemini-3.6-flash`
 
 1. **Probabilità condizionata** `03:41` · _definizione_
    P(A|B) = P(A ∩ B) / P(B), definita solo quando P(B) > 0.
@@ -84,8 +84,9 @@ export GEMINI_API_KEY=...   # also read: GOOGLE_API_KEY, GOOGLE_GENERATIVE_AI_AP
 export GROQ_API_KEY=...
 ```
 
-With both keys, `--provider auto` (the default) uses Gemini and moves to Groq when Gemini is rate limited or out of
-quota. With `ANTHROPIC_API_KEY` set, Claude is added at the end of the chain. You can also pick one explicitly:
+With both keys, `--provider auto` (the default) uses Gemini (`gemini-3.6-flash`) and moves to Groq
+(`openai/gpt-oss-120b`) when Gemini is overloaded, rate limited or out of quota. Groq's free tier allows 8,000 tokens
+per minute, so distillo sends it smaller pieces, one at a time: a 40-minute lecture takes about two minutes. With `ANTHROPIC_API_KEY` set, Claude is added at the end of the chain. You can also pick one explicitly:
 
 ```bash
 distillo talk.mp3 --provider anthropic                       # claude-opus-5-5

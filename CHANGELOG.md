@@ -12,4 +12,6 @@ First version.
 - One ranking pass that merges duplicates, so `--points N` is always a prefix of a longer list.
 - `--points` and `--density low|medium|high`; `--order time|rank`; `--lang` for the language of the notes.
 - Providers: Gemini and Groq (free tiers) with automatic fallback, Claude, and Ollama for fully local use.
+- Free-tier aware: smaller requests and one at a time for Groq (8k tokens/minute), quick fallback when a
+  provider is overloaded, tolerant parsing of small schema slips.
 - Markdown and JSON output, clickable timestamps with `--link`, on-disk response cache.

@@ -27,8 +27,15 @@ def _require_key(api_key: str | None) -> str:
 
 
 class GroqLLM:
-    def __init__(self, model: str, *, api_key: str | None = None) -> None:
+    # Groq's free tier allows 8,000 tokens per minute per model, counting the room left
+    # for the answer: keep each request well under that, and send one at a time.
+    max_chunk_chars = 7_000
+    max_parallel = 1
+    max_output_tokens = 4_000
+
+    def __init__(self, model: str, *, api_key: str | None = None, retries: int = 3) -> None:
         self.model = model
+        self.retries = retries
         self.api_key = _require_key(api_key)
 
     @property
@@ -38,23 +45,29 @@ class GroqLLM:
     def complete_json(
         self, *, system: str, prompt: str, schema: dict[str, Any], max_tokens: int = 16_000
     ) -> Any:
+        payload: dict[str, Any] = {
+            "model": self.model,
+            "temperature": 0,
+            "max_completion_tokens": min(max_tokens, self.max_output_tokens),
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": prompt},
+            ],
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {"name": "result", "schema": _without_enums(schema), "strict": True},
+            },
+        }
+        if self.model.startswith("openai/gpt-oss"):
+            # At the default (medium) effort gpt-oss can spend its whole token budget
+            # reasoning and return empty JSON; low is fast and enough for extraction.
+            payload["reasoning_effort"] = "low"
         body = post_json(
             f"{API}/chat/completions",
             provider="Groq",
+            retries=self.retries,
             headers={"Authorization": f"Bearer {self.api_key}"},
-            payload={
-                "model": self.model,
-                "temperature": 0,
-                "max_completion_tokens": max_tokens,
-                "messages": [
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": prompt},
-                ],
-                "response_format": {
-                    "type": "json_schema",
-                    "json_schema": {"name": "result", "schema": schema, "strict": True},
-                },
-            },
+            payload=payload,
         )
         try:
             choice = body["choices"][0]
@@ -67,6 +80,16 @@ class GroqLLM:
             return json.loads(text)
         except (json.JSONDecodeError, TypeError) as exc:
             raise LLMError(f"Groq returned invalid JSON: {exc}") from exc
+
+
+def _without_enums(schema: Any) -> Any:
+    """Groq rejects a whole answer when one value misses an ``enum``; the pipeline
+    normalizes such values itself, so send the schema without them."""
+    if isinstance(schema, dict):
+        return {k: _without_enums(v) for k, v in schema.items() if k != "enum"}
+    if isinstance(schema, list):
+        return [_without_enums(v) for v in schema]
+    return schema
 
 
 # Groq's free tier accepts uploads up to this size for speech-to-text.

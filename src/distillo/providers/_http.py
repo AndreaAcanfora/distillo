@@ -47,6 +47,10 @@ def post_json(
                 )
             time.sleep(_wait(response, attempt, max_wait))
             continue
+        if response.status_code == 413:
+            # Larger than this provider's per-request or per-minute budget: retrying the
+            # same request cannot help, but a provider with a bigger budget might.
+            raise QuotaError(f"{provider}: request too large ({response.text[:200]})")
         if response.status_code in (401, 403):
             raise LLMError(f"{provider} rejected the API key ({response.status_code})")
         if response.status_code >= 400:

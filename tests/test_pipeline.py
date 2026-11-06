@@ -96,3 +96,31 @@ def test_repair_ranking_handles_bad_ids() -> None:
         {"id": "ghost", "duplicates": []},
     ]
     assert repair_ranking(ranking, candidates) == [("c1", []), ("c3", []), ("c2", [])]
+
+
+def test_provider_limits_shrink_chunks_and_parallelism(lecture: Transcript) -> None:
+    class Limited(FakeLLM):
+        max_chunk_chars = 300
+        max_parallel = 1
+
+    _, report = Distiller(Limited()).run(lecture, Options(points=3))
+    assert report.chunks > 1
+
+
+def test_long_statements_are_shortened_for_ranking() -> None:
+    from distillo.pipeline import _shorten
+
+    assert _shorten("word " * 100).endswith("…")
+    assert len(_shorten("word " * 100)) == 220
+    assert _shorten("short  text") == "short text"
+
+
+def test_schema_slips_are_normalized() -> None:
+    from distillo.pipeline import _normalize
+
+    assert _normalize({"kind": "Theorem", "importance": 9}) == {"kind": "concept", "importance": 5}
+    assert _normalize({"kind": " FORMULA ", "importance": "2"}) == {
+        "kind": "formula",
+        "importance": 2,
+    }
+    assert _normalize({"kind": "fact", "importance": None})["importance"] == 3

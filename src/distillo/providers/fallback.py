@@ -19,6 +19,14 @@ class FallbackLLM:
         self.served_by: set[str] = set()
 
     @property
+    def max_chunk_chars(self) -> int | None:
+        return _smallest(self.providers, "max_chunk_chars")
+
+    @property
+    def max_parallel(self) -> int | None:
+        return _smallest(self.providers, "max_parallel")
+
+    @property
     def name(self) -> str:
         return " > ".join(p.name for p in self.providers)
 
@@ -43,3 +51,9 @@ class FallbackLLM:
                 self.served_by.add(provider.name)
             return result
         raise LLMError("every provider failed:\n- " + "\n- ".join(errors or ["all exhausted"]))
+
+
+def _smallest(providers: Sequence[LLM], attribute: str) -> int | None:
+    """The tightest limit in the chain, so any provider can take over mid-run."""
+    values = [v for p in providers if isinstance(v := getattr(p, attribute, None), int)]
+    return min(values) if values else None

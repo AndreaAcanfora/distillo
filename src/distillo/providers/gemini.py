@@ -18,8 +18,9 @@ def gemini_key() -> str | None:
 
 
 class GeminiLLM:
-    def __init__(self, model: str, *, api_key: str | None = None) -> None:
+    def __init__(self, model: str, *, api_key: str | None = None, retries: int = 3) -> None:
         self.model = model
+        self.retries = retries
         self.api_key = api_key or gemini_key()
         if not self.api_key:
             raise LLMError(
@@ -37,6 +38,9 @@ class GeminiLLM:
         body = post_json(
             f"{API}/{self.model}:generateContent",
             provider="Gemini",
+            retries=self.retries,
+            # When overloaded, Gemini can hold a request for minutes before failing.
+            timeout=90.0,
             headers={"x-goog-api-key": str(self.api_key)},
             payload={
                 "systemInstruction": {"parts": [{"text": system}]},

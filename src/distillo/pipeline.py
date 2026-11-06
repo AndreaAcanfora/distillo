@@ -18,7 +18,7 @@ from pydantic import ValidationError
 from .cache import Cache
 from .chunking import Chunk, chunk_transcript
 from .grounding import SegmentIndex, ground
-from .models import Candidate, Distillation, KeyPoint, Transcript
+from .models import Candidate, Distillation, KeyPoint, Kind, Transcript
 from .prompts import (
     EXTRACT_PROMPT,
     EXTRACT_SCHEMA,
@@ -83,11 +83,19 @@ class Distiller:
     def run(self, transcript: Transcript, options: Options) -> tuple[Distillation, Report]:
         report = Report()
         language = options.language or "the same language as the transcript"
-        chunks = chunk_transcript(transcript, max_chars=options.chunk_chars)
+        chunk_chars = options.chunk_chars
+        provider_limit = getattr(self.llm, "max_chunk_chars", None)
+        if isinstance(provider_limit, int):
+            chunk_chars = min(chunk_chars, provider_limit)
+        workers = max(1, options.workers)
+        parallel_limit = getattr(self.llm, "max_parallel", None)
+        if isinstance(parallel_limit, int):
+            workers = min(workers, parallel_limit)
+        chunks = chunk_transcript(transcript, max_chars=chunk_chars)
         report.chunks = len(chunks)
 
         self.progress(f"Extracting key points from {len(chunks)} part(s)")
-        with ThreadPoolExecutor(max_workers=max(1, options.workers)) as pool:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
             per_chunk = list(
                 pool.map(
                     lambda chunk: self._extract(chunk, len(chunks), transcript, language, options),
@@ -159,13 +167,15 @@ class Distiller:
         candidates: list[Candidate] = []
         for n, raw in enumerate(data.get("points", []), start=1):
             try:
-                candidates.append(Candidate(id=f"c{chunk.index + 1}.{n}", **raw))
+                candidates.append(Candidate(id=f"c{chunk.index + 1}.{n}", **_normalize(raw)))
             except (TypeError, ValidationError):
                 continue
         return candidates
 
     def _rank(self, candidates: list[Candidate], options: Options) -> list[tuple[str, list[str]]]:
-        lines = "\n".join(f"{c.id} | {c.importance} | {c.title}: {c.statement}" for c in candidates)
+        lines = "\n".join(
+            f"{c.id} | {c.importance} | {c.title}: {_shorten(c.statement)}" for c in candidates
+        )
         prompt = RANK_PROMPT.format(context_line=context_line(options.context), candidates=lines)
         data = self._call(RANK_SYSTEM, prompt, RANK_SCHEMA, kind="rank")
         return repair_ranking(data.get("ranking", []), candidates)
@@ -180,6 +190,27 @@ class Distiller:
             raise LLMError(f"expected a JSON object from the {kind} step")
         self.cache.set(key, result)
         return result
+
+
+_KINDS = {kind.value for kind in Kind}
+
+
+def _normalize(raw: dict[str, Any]) -> dict[str, Any]:
+    """Tolerate small schema slips from weaker models instead of losing the point."""
+    fixed = dict(raw)
+    kind = str(fixed.get("kind", "")).strip().lower()
+    fixed["kind"] = kind if kind in _KINDS else Kind.CONCEPT.value
+    try:
+        fixed["importance"] = min(5, max(1, round(float(fixed.get("importance", 3)))))
+    except (TypeError, ValueError):
+        fixed["importance"] = 3
+    return fixed
+
+
+def _shorten(text: str, limit: int = 220) -> str:
+    """Ranking needs the gist of each point, not all of it: keeps the request small."""
+    text = " ".join(text.split())
+    return text if len(text) <= limit else text[: limit - 1].rstrip() + "…"
 
 
 def _served_by(llm: LLM) -> str:

@@ -9,7 +9,7 @@ from typing import Any
 
 from .models import Kind
 
-PROMPT_VERSION = "1"
+PROMPT_VERSION = "2"
 
 EXTRACT_SYSTEM = """\
 You turn recordings of lessons, lectures, courses and talks into study notes.
@@ -25,6 +25,9 @@ What does not: greetings, logistics, jokes, digressions, filler, and questions f
 audience unless the answer teaches something.
 
 Rules:
+- A point must teach something. Do not make a point that only says a topic is \
+important, will be covered, or is the basis of the course: put that emphasis in the \
+importance score of the point that explains the topic.
 - One idea per point. Write the statement so it is understandable on its own, without \
 the transcript: precise, concrete, at most three sentences. Keep numbers, names and \
 formulas exact.
@@ -51,7 +54,8 @@ extracted from consecutive parts of one recording. Some say the same thing in di
 words because the parts overlap or the speaker repeated themselves.
 
 Do two things:
-1. Merge duplicates: points that state the same idea form one group. Choose as "id" the \
+1. Merge duplicates: points that state the same idea form one group, and so do a \
+vague point and a more precise point about the same thing. Choose as "id" the \
 best formulated member and list the others in "duplicates".
 2. Order the groups from most to least worth learning, for a student who may only read \
 the first few. Rank first the ideas the rest of the lesson depends on, those the speaker \

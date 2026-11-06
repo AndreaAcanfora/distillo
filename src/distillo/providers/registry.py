@@ -5,7 +5,7 @@ import os
 from .base import LLM, LLMError
 
 DEFAULT_MODELS = {
-    "gemini": "gemini-3.8-flash",
+    "gemini": "gemini-3.6-flash",
     "groq": "openai/gpt-oss-120b",
     "anthropic": "claude-opus-5-5",
     "ollama": "qwen3:8b",
@@ -47,16 +47,31 @@ def make_llm(provider: str, model: str | None = None, *, effort: str = "medium")
 def _auto(effort: str) -> LLM:
     """Every provider with a key, free tiers first."""
     from .fallback import FallbackLLM
-    from .gemini import gemini_key
-    from .groq import groq_key
+    from .gemini import GeminiLLM, gemini_key
+    from .groq import GroqLLM, groq_key
 
-    chain: list[LLM] = []
-    if gemini_key():
-        chain.append(make_llm("gemini"))
-    if groq_key():
-        chain.append(make_llm("groq"))
-    if os.environ.get("ANTHROPIC_API_KEY"):
-        chain.append(make_llm("anthropic", effort=effort))
-    if not chain:
+    available = [
+        name
+        for name, present in (
+            ("gemini", gemini_key()),
+            ("groq", groq_key()),
+            ("anthropic", os.environ.get("ANTHROPIC_API_KEY")),
+        )
+        if present
+    ]
+    if not available:
         raise LLMError(NO_KEY_HELP)
-    return chain[0] if len(chain) == 1 else FallbackLLM(chain)
+    if len(available) == 1:
+        return make_llm(available[0], effort=effort)
+    chain: list[LLM] = []
+    for position, name in enumerate(available):
+        # Free tiers are often briefly overloaded: with a fallback behind it, a provider
+        # gets one quick retry instead of minutes of backoff.
+        retries = 3 if position == len(available) - 1 else 1
+        if name == "gemini":
+            chain.append(GeminiLLM(DEFAULT_MODELS["gemini"], retries=retries))
+        elif name == "groq":
+            chain.append(GroqLLM(DEFAULT_MODELS["groq"], retries=retries))
+        else:
+            chain.append(make_llm("anthropic", effort=effort))
+    return FallbackLLM(chain)

@@ -61,10 +61,10 @@ def groq_ok(payload: dict[str, Any]) -> httpx.Response:
 def test_gemini_request_shape(monkeypatch: pytest.MonkeyPatch) -> None:
     recorder = Recorder(gemini_ok({"points": []}))
     monkeypatch.setattr(httpx, "post", recorder)
-    llm = GeminiLLM("gemini-3.8-flash", api_key="k")
+    llm = GeminiLLM("gemini-3.6-flash", api_key="k")
     assert llm.complete_json(system="sys", prompt="p", schema=SCHEMA) == {"points": []}
     sent = recorder.requests[0]
-    assert sent["url"].endswith("/models/gemini-3.8-flash:generateContent")
+    assert sent["url"].endswith("/models/gemini-3.6-flash:generateContent")
     assert sent["headers"] == {"x-goog-api-key": "k"}
     config = sent["json"]["generationConfig"]
     assert config["responseJsonSchema"] == SCHEMA
@@ -175,7 +175,7 @@ def test_auto_orders_free_providers_first(monkeypatch: pytest.MonkeyPatch) -> No
     monkeypatch.setenv("GROQ_API_KEY", "g")
     monkeypatch.setenv("GEMINI_API_KEY", "m")
     assert make_llm("auto").name.startswith(
-        "gemini:gemini-3.8-flash > groq:openai/gpt-oss-120b > anthropic:"
+        "gemini:gemini-3.6-flash > groq:openai/gpt-oss-120b > anthropic:"
     )
 
 
@@ -217,3 +217,59 @@ def test_groq_transcription_size_limit(monkeypatch: pytest.MonkeyPatch, tmp_path
     audio.write_bytes(b"0123456789")
     with pytest.raises(TranscriptionError, match="25 MB"):
         load_transcript(audio, transcriber="groq")
+
+
+def test_auto_retries_little_before_falling_back(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GEMINI_API_KEY", "m")
+    monkeypatch.setenv("GROQ_API_KEY", "g")
+    chain = make_llm("auto")
+    assert isinstance(chain, FallbackLLM)
+    gemini, groq = chain.providers
+    assert isinstance(gemini, GeminiLLM)
+    assert isinstance(groq, GroqLLM)
+    assert (gemini.retries, groq.retries) == (1, 3)
+
+    recorder = Recorder(httpx.Response(503), httpx.Response(503), groq_ok({"ok": 1}))
+    monkeypatch.setattr(httpx, "post", recorder)
+    assert chain.complete_json(system="s", prompt="p", schema=SCHEMA) == {"ok": 1}
+    assert [r["url"].split("/")[2] for r in recorder.requests] == [
+        "generativelanguage.googleapis.com",
+        "generativelanguage.googleapis.com",
+        "api.groq.com",
+    ]
+
+
+def test_request_too_large_moves_on_without_retrying(monkeypatch: pytest.MonkeyPatch) -> None:
+    recorder = Recorder(httpx.Response(413, text="tokens per minute"))
+    monkeypatch.setattr(httpx, "post", recorder)
+    with pytest.raises(QuotaError, match="too large"):
+        GroqLLM("m", api_key="k").complete_json(system="s", prompt="p", schema=SCHEMA)
+    assert len(recorder.requests) == 1
+
+
+def test_groq_caps_output_for_the_free_tier(monkeypatch: pytest.MonkeyPatch) -> None:
+    recorder = Recorder(groq_ok({}))
+    monkeypatch.setattr(httpx, "post", recorder)
+    GroqLLM("m", api_key="k").complete_json(system="s", prompt="p", schema=SCHEMA)
+    assert recorder.requests[0]["json"]["max_completion_tokens"] == GroqLLM.max_output_tokens
+
+
+def test_chain_uses_the_tightest_limits() -> None:
+    chain = FallbackLLM([Scripted("a"), GroqLLM("m", api_key="k")])
+    assert chain.max_chunk_chars == GroqLLM.max_chunk_chars
+    assert chain.max_parallel == 1
+    assert FallbackLLM([Scripted("a")]).max_chunk_chars is None
+
+
+def test_groq_schema_has_no_enums(monkeypatch: pytest.MonkeyPatch) -> None:
+    from distillo.prompts import EXTRACT_SCHEMA
+
+    recorder = Recorder(groq_ok({"points": []}))
+    monkeypatch.setattr(httpx, "post", recorder)
+    GroqLLM("openai/gpt-oss-120b", api_key="k").complete_json(
+        system="s", prompt="p", schema=EXTRACT_SCHEMA
+    )
+    sent = recorder.requests[0]["json"]
+    assert "enum" not in json.dumps(sent["response_format"])
+    assert sent["reasoning_effort"] == "low"
+    assert "enum" in json.dumps(EXTRACT_SCHEMA)  # the shared schema is untouched

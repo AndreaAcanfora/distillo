@@ -12,9 +12,15 @@ class QuotaError(LLMError):
 
 
 class LLM(Protocol):
+    """A model backend.
+
+    Backends may also define ``max_chunk_chars`` and ``max_parallel`` (ints) when their
+    limits, such as a small free-tier token budget, call for smaller or fewer requests.
+    """
+
     @property
     def name(self) -> str:
-        """Stable identifier such as ``gemini:gemini-3.8-flash``, used for caching."""
+        """Stable identifier such as ``gemini:gemini-3.6-flash``, used for caching."""
         ...
 
     def complete_json(
