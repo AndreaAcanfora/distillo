@@ -2,6 +2,10 @@
 
 ## 0.2.0 (unreleased)
 
+- Web demo in `demo/` (Gradio, Italian interface): upload or link, number of points, language, downloads; shared
+  free-tier keys with a per-visitor limit, or the visitor's own keys for unlimited use.
+- `free_chain()` and `load_transcript(..., groq_api_key=...)` accept keys per call, for apps serving many users.
+
 - Links as input: YouTube and the other sites yt-dlp supports. Captions in the spoken language are used when
   available (uploaded before automatic, never machine-translated), otherwise only the audio is downloaded.
   YouTube and Vimeo timestamps become links; the video title becomes the heading.

@@ -33,6 +33,7 @@ def load_transcript(
     transcriber: str = "auto",
     whisper_model: str = "small",
     language: str | None = None,
+    groq_api_key: str | None = None,
 ) -> Transcript:
     """Load ``path``. ``transcriber`` is ``groq``, ``local`` or ``auto`` (Groq if keyed)."""
     suffix = path.suffix.lower()
@@ -46,7 +47,11 @@ def load_transcript(
         transcript = Transcript.model_validate(json.loads(path.read_text(encoding="utf-8")))
     else:
         transcript = transcribe_media(
-            path, transcriber=transcriber, model_size=whisper_model, language=language
+            path,
+            transcriber=transcriber,
+            model_size=whisper_model,
+            language=language,
+            groq_api_key=groq_api_key,
         )
     if not transcript.segments:
         raise TranscriptionError(f"no speech or text found in {path}")
@@ -95,20 +100,27 @@ def parse_plain_text(text: str) -> Transcript:
 
 
 def transcribe_media(
-    path: Path, *, transcriber: str = "auto", model_size: str = "small", language: str | None
+    path: Path,
+    *,
+    transcriber: str = "auto",
+    model_size: str = "small",
+    language: str | None,
+    groq_api_key: str | None = None,
 ) -> Transcript:
     from .providers.groq import groq_key
 
     if transcriber == "auto":
-        transcriber = "groq" if groq_key() else "local"
+        transcriber = "groq" if groq_api_key or groq_key() else "local"
     if transcriber == "groq":
-        return transcribe_with_groq(path, language=language)
+        return transcribe_with_groq(path, language=language, api_key=groq_api_key)
     if transcriber == "local":
         return transcribe_locally(path, model_size=model_size, language=language)
     raise TranscriptionError(f"unknown transcriber {transcriber!r}; use auto, groq or local")
 
 
-def transcribe_with_groq(path: Path, *, language: str | None) -> Transcript:
+def transcribe_with_groq(
+    path: Path, *, language: str | None, api_key: str | None = None
+) -> Transcript:
     """Transcribe on Groq, compressing and splitting first when the file is over 25 MB."""
     from .audio import AudioError, prepare_for_upload
     from .providers import LLMError
@@ -123,7 +135,7 @@ def transcribe_with_groq(path: Path, *, language: str | None) -> Transcript:
             raise TranscriptionError(str(exc)) from exc
         for part in parts:
             try:
-                body = groq_transcribe(part.path, language=language)
+                body = groq_transcribe(part.path, language=language, api_key=api_key)
             except LLMError as exc:
                 raise TranscriptionError(str(exc)) from exc
             detected = detected or body.get("language")

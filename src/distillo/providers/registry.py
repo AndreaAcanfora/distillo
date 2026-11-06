@@ -45,33 +45,54 @@ def make_llm(provider: str, model: str | None = None, *, effort: str = "medium")
 
 
 def _auto(effort: str) -> LLM:
-    """Every provider with a key, free tiers first."""
+    """Every provider with a key in the environment, free tiers first."""
+    from .gemini import gemini_key
+    from .groq import groq_key
+
+    return free_chain(
+        gemini_api_key=gemini_key(),
+        groq_api_key=groq_key(),
+        with_anthropic=bool(os.environ.get("ANTHROPIC_API_KEY")),
+        effort=effort,
+    )
+
+
+def free_chain(
+    *,
+    gemini_api_key: str | None,
+    groq_api_key: str | None,
+    with_anthropic: bool = False,
+    effort: str = "medium",
+) -> LLM:
+    """Gemini, then Groq (then Claude), for the keys given: used by ``auto`` and by apps
+    that hold keys per request instead of in the environment."""
+    from .anthropic import AnthropicLLM
     from .fallback import FallbackLLM
-    from .gemini import GeminiLLM, gemini_key
-    from .groq import GroqLLM, groq_key
+    from .gemini import GeminiLLM
+    from .groq import GroqLLM
 
     available = [
         name
         for name, present in (
-            ("gemini", gemini_key()),
-            ("groq", groq_key()),
-            ("anthropic", os.environ.get("ANTHROPIC_API_KEY")),
+            ("gemini", gemini_api_key),
+            ("groq", groq_api_key),
+            ("anthropic", with_anthropic),
         )
         if present
     ]
     if not available:
         raise LLMError(NO_KEY_HELP)
-    if len(available) == 1:
-        return make_llm(available[0], effort=effort)
     chain: list[LLM] = []
     for position, name in enumerate(available):
         # Free tiers are often briefly overloaded: with a fallback behind it, a provider
         # gets one quick retry instead of minutes of backoff.
         retries = 3 if position == len(available) - 1 else 1
         if name == "gemini":
-            chain.append(GeminiLLM(DEFAULT_MODELS["gemini"], retries=retries))
+            chain.append(
+                GeminiLLM(DEFAULT_MODELS["gemini"], api_key=gemini_api_key, retries=retries)
+            )
         elif name == "groq":
-            chain.append(GroqLLM(DEFAULT_MODELS["groq"], retries=retries))
+            chain.append(GroqLLM(DEFAULT_MODELS["groq"], api_key=groq_api_key, retries=retries))
         else:
-            chain.append(make_llm("anthropic", effort=effort))
-    return FallbackLLM(chain)
+            chain.append(AnthropicLLM(DEFAULT_MODELS["anthropic"], effort=effort))
+    return chain[0] if len(chain) == 1 else FallbackLLM(chain)

@@ -300,3 +300,17 @@ def test_groq_schema_has_no_enums(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "enum" not in json.dumps(sent["response_format"])
     assert sent["reasoning_effort"] == "low"
     assert "enum" in json.dumps(EXTRACT_SCHEMA)  # the shared schema is untouched
+
+
+def test_free_chain_with_explicit_keys() -> None:
+    from distillo.providers import free_chain
+
+    chain = free_chain(gemini_api_key="m", groq_api_key="g")
+    assert isinstance(chain, FallbackLLM)
+    gemini, groq = chain.providers
+    assert isinstance(gemini, GeminiLLM)
+    assert isinstance(groq, GroqLLM)
+    assert (gemini.api_key, groq.api_key) == ("m", "g")
+    only_groq = free_chain(gemini_api_key=None, groq_api_key="g")
+    assert isinstance(only_groq, GroqLLM)
+    assert only_groq.retries == 3
