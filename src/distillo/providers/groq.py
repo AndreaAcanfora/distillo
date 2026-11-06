@@ -107,10 +107,7 @@ def groq_transcribe(
     key = _require_key(api_key)
     size = path.stat().st_size
     if size > MAX_UPLOAD_BYTES:
-        raise LLMError(
-            f"{path.name} is {size / 2**20:.0f} MB, over Groq's 25 MB limit. Compress it "
-            "(e.g. ffmpeg -i in.m4a -ac 1 -b:a 32k out.mp3) or use --transcriber local."
-        )
+        raise LLMError(f"{path.name} is {size / 2**20:.0f} MB, over Groq's 25 MB upload limit")
     data: dict[str, Any] = {"model": model, "response_format": "verbose_json", "temperature": "0"}
     if language:
         data["language"] = language

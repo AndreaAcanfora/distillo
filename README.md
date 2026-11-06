@@ -106,21 +106,32 @@ distillo lesson.mp4 --density high --lang en         # dense notes, in English
 distillo lesson.mp4 -c "2nd year organic chemistry"  # context helps the model
 distillo lesson.mp4 -o notes.md --save-transcript lesson.srt
 distillo lesson.srt -n 20 --order rank               # reuse the transcript, most important first
+distillo "https://www.youtube.com/watch?v=VIDEO_ID" -n 10   # a link: captions if any, else the audio
 distillo captions.vtt --link "https://youtu.be/VIDEO_ID?t={seconds}"   # clickable timestamps
 distillo lesson.mp4 -f json                          # for scripts and other apps
 ```
 
-Inputs: any audio or video file, `.srt` / `.vtt` subtitles, plain `.txt` transcripts (no timestamps).
+Inputs: any audio or video file, `.srt` / `.vtt` subtitles, plain `.txt` transcripts (no timestamps), or a link.
+
+### Links
+
+YouTube and the [other sites yt-dlp supports](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md)
+(Vimeo, archive.org, many university platforms, direct links to media files). If the video has captions in the
+spoken language, distillo uses them and skips transcription; otherwise it downloads only the audio. YouTube
+timestamps become links to the exact second. Use `--no-captions` to transcribe even when captions exist (automatic
+captions have no punctuation), and `--cookies-from-browser firefox` if YouTube asks you to sign in, which happens
+on servers and VPNs.
 
 ### Speech to text
 
 | `--transcriber` | How | Notes |
 | --- | --- | --- |
 | `auto` (default) | Groq if `GROQ_API_KEY` is set, otherwise local | |
-| `groq` | Whisper large-v3-turbo on Groq | fast, free; files up to 25 MB (about 1h45 of mono MP3 at 32 kbps) |
+| `groq` | Whisper large-v3-turbo on Groq | fast, free; larger files are compressed and split automatically |
 | `local` | [faster-whisper](https://github.com/SYSTRAN/faster-whisper) on your CPU/GPU | needs `distillo[local]`; `--whisper-model tiny…large-v3` |
 
-Long recording over 25 MB? Compress it first: `ffmpeg -i lesson.m4a -ac 1 -b:a 32k lesson.mp3`.
+Groq accepts uploads up to 25 MB. Bigger recordings (a video, a WAV, a two-hour lecture) are converted to mono
+Opus at 24 kbit/s, about 11 MB per hour, and split into one-hour parts whose timestamps are joined back together.
 
 ## How it works
 
@@ -142,7 +153,8 @@ of points or another output format costs nothing. `--no-cache` forces fresh answ
 ## Roadmap
 
 - [x] v0.1: files and subtitles, Whisper (Groq or local), grounded points, density, merge, Markdown/JSON, free providers with fallback
-- [ ] v0.2: YouTube links (captions when available), chapters for long recordings, automatic compression for Groq
+- [x] v0.2: links (YouTube and other sites, captions when available), automatic compression and splitting for Groq
+- [ ] v0.2.x: chapters for long recordings
 - [ ] v0.3: Anki deck export and self-test questions
 - [ ] v0.4: `--merge` several lectures into one course revision sheet
 - [ ] v1.0: PyPI release, web demo on Hugging Face Spaces

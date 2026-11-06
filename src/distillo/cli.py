@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import tempfile
 from enum import Enum
 from pathlib import Path
 from typing import Annotated
@@ -14,6 +15,7 @@ from .cache import Cache
 from .pipeline import Distiller, Options
 from .providers import DEFAULT_MODELS, LLMError, make_llm
 from .render import to_json, to_markdown
+from .sources import SourceError, fetch, is_url
 from .transcribe import TranscriptionError, load_transcript, to_srt
 
 app = typer.Typer(add_completion=False, rich_markup_mode="rich")
@@ -81,9 +83,11 @@ def _version(value: bool) -> None:
 @app.command()
 def main(
     source: Annotated[
-        Path,
+        str,
         typer.Argument(
-            help="Audio or video file (needs the \\[local] extra), or a .srt/.vtt/.txt transcript."
+            help="Audio or video file, .srt/.vtt/.txt transcript, or a link "
+            "(YouTube and the other sites yt-dlp supports).",
+            show_default=False,
         ),
     ],
     points: Annotated[
@@ -166,6 +170,13 @@ def main(
     chunk_chars: Annotated[
         int, typer.Option(min=2_000, help="Transcript characters per extraction request.")
     ] = 16_000,
+    captions: Annotated[
+        bool, typer.Option(help="For links, use the video's captions when available.")
+    ] = True,
+    cookies_from_browser: Annotated[
+        str | None,
+        typer.Option(help="For links, use this browser's cookies (firefox, chrome…) if blocked."),
+    ] = None,
     cache: Annotated[bool, typer.Option(help="Reuse earlier model responses.")] = True,
     version: Annotated[
         bool | None,
@@ -177,13 +188,30 @@ def main(
         # Check the model configuration first: no point transcribing an hour of audio
         # only to find out there is no API key.
         llm = make_llm(provider.value, model, effort=effort.value)
-        with err.status("Reading the recording…"):
-            transcript = load_transcript(
-                source,
-                transcriber=transcriber.value,
-                whisper_model=whisper_model,
-                language=source_lang,
-            )
+        with tempfile.TemporaryDirectory(prefix="distillo-") as workdir:
+            path, title = Path(source), None
+            if is_url(source):
+                with err.status("Downloading…"):
+                    fetched = fetch(
+                        source,
+                        Path(workdir),
+                        language=source_lang,
+                        captions=captions,
+                        cookies_from_browser=cookies_from_browser,
+                    )
+                path, title = fetched.path, fetched.title
+                link = link or fetched.link
+                if fetched.captions:
+                    err.print("[dim]Using the video's captions.[/dim]")
+            with err.status("Reading the recording…"):
+                transcript = load_transcript(
+                    path,
+                    transcriber=transcriber.value,
+                    whisper_model=whisper_model,
+                    language=source_lang,
+                )
+            if title:
+                transcript.source = title
         if save_transcript:
             save_transcript.write_text(to_srt(transcript), encoding="utf-8")
             err.print(f"[dim]Transcript saved to {save_transcript}[/dim]")
@@ -200,7 +228,7 @@ def main(
         with err.status("Distilling…") as status:
             distiller = Distiller(llm, Cache(None, enabled=cache), progress=status.update)
             result, report = distiller.run(transcript, options)
-    except (TranscriptionError, LLMError) as exc:
+    except (TranscriptionError, LLMError, SourceError) as exc:
         err.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
 
