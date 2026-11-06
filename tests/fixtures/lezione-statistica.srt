@@ -1,0 +1,35 @@
+1
+00:00:00,000 --> 00:00:06,000
+Buongiorno a tutti, prima di cominciare vi ricordo che l'aula della prossima settimana cambia.
+
+2
+00:00:06,500 --> 00:00:15,000
+Oggi parliamo di probabilità condizionata, che è la base di tutto quello che faremo nel corso.
+
+3
+00:00:15,500 --> 00:00:27,000
+La probabilità condizionata di A dato B è la probabilità di A e B diviso la probabilità di B, ed è definita solo se la probabilità di B è maggiore di zero.
+
+4
+00:00:27,500 --> 00:00:40,000
+Facciamo un esempio con un mazzo di carte: la probabilità di pescare un re sapendo che la carta è una figura è quattro su dodici, cioè un terzo.
+
+5
+00:01:10,000 --> 00:01:24,000
+Ora il teorema di Bayes, che vi chiederò sicuramente all'esame: la probabilità di A dato B è uguale alla probabilità di B dato A per la probabilità di A, diviso la probabilità di B.
+
+6
+00:01:24,500 --> 00:01:38,000
+Attenzione all'errore più comune: confondere la probabilità di A dato B con la probabilità di B dato A, che in generale sono diverse.
+
+7
+00:02:05,000 --> 00:02:18,000
+Due eventi si dicono indipendenti quando la probabilità della loro intersezione è uguale al prodotto delle loro probabilità.
+
+8
+00:02:18,500 --> 00:02:30,000
+Ripeto perché è importante: il teorema di Bayes lega la probabilità di A dato B alla probabilità di B dato A.
+
+9
+00:02:30,500 --> 00:02:40,000
+Per oggi è tutto, ci vediamo giovedì.
