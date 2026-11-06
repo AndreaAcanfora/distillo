@@ -166,6 +166,7 @@ def test_fetch_downloads_audio_without_captions(fake_ytdlp: type[FakeYDL], tmp_p
     assert fetched.path.name == "vid1.m4a"
     assert fake_ytdlp.calls[0]["format"].startswith("bestaudio")
     assert fake_ytdlp.calls[0]["cookiesfrombrowser"] == ("firefox",)
+    assert fake_ytdlp.calls[0]["noprogress"] is True
 
 
 def test_fetch_explains_bot_checks(fake_ytdlp: type[FakeYDL], tmp_path: Path) -> None:

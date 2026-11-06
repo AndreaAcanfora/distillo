@@ -43,6 +43,7 @@ def fetch(
     base: dict[str, Any] = {
         "quiet": True,
         "no_warnings": True,
+        "noprogress": True,
         "noplaylist": True,
         "outtmpl": str(workdir / "%(id)s.%(ext)s"),
     }
