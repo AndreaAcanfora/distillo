@@ -3,6 +3,6 @@
 from __future__ import annotations
 
 from .base import LLM, LLMError, QuotaError
-from .registry import DEFAULT_MODELS, PROVIDERS, make_llm
+from .registry import DEFAULT_MODELS, PROVIDERS, free_chain, make_llm
 
-__all__ = ["DEFAULT_MODELS", "LLM", "PROVIDERS", "LLMError", "QuotaError", "make_llm"]
+__all__ = ["DEFAULT_MODELS", "LLM", "PROVIDERS", "LLMError", "QuotaError", "free_chain", "make_llm"]

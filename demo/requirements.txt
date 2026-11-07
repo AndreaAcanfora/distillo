@@ -1,0 +1,2 @@
+distillo @ git+https://github.com/AndreaAcanfora/distillo@master
+gradio>=5,<7

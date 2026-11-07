@@ -40,6 +40,13 @@ $ distillo lezione-statistica.m4a --points 4 --lang it
 
 _Example output, shortened._
 
+## Web demo
+
+No install needed: upload a lecture or paste a link in the [web demo](demo/) (Italian interface), built with Gradio
+and ready for Hugging Face Spaces. The same code runs locally with `python demo/app.py`.
+
+![distillo web demo: a lecture on the left, the key points with timestamps and quotes on the right](docs/demo-screenshot.png)
+
 ## Why another summarizer?
 
 Most AI summarizers give you a paragraph you can't check. distillo is built for studying:
@@ -157,7 +164,8 @@ of points or another output format costs nothing. `--no-cache` forces fresh answ
 - [ ] v0.2.x: chapters for long recordings
 - [ ] v0.3: Anki deck export and self-test questions
 - [ ] v0.4: `--merge` several lectures into one course revision sheet
-- [ ] v1.0: PyPI release, web demo on Hugging Face Spaces
+- [x] Web demo (Gradio), ready for Hugging Face Spaces
+- [ ] v1.0: PyPI release
 
 ## Contributing
 
