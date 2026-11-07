@@ -17,33 +17,47 @@ review, 30 for a full revision sheet. It runs **free** on the Gemini and Groq fr
 
 ---
 
+A real 81-minute university lecture (archives law, in Italian, from [archive.org](https://archive.org/details/Lezione6LegislazioneArchiviStefanoTwardzik),
+CC BY-NC-SA), straight from the link, on the free tiers. It took 5½ minutes from link to notes:
+
 ```console
-$ distillo lezione-statistica.m4a --points 4 --lang it
+$ distillo "https://archive.org/download/Lezione6LegislazioneArchiviStefanoTwardzik/lezione_6_lezione_twardzik_10_11_09.mp3" -n 8 --lang it
 ```
 
 ```markdown
-# lezione-statistica.m4a
+# lezione_6_lezione_twardzik_10_11_09
 
-**4 nozioni chiave** (su 17) · 48:12 · `gemini:gemini-3.6-flash`
+**8 nozioni chiave** (su 53) · 1:21:02 · `gemini:gemini-3.6-flash, groq:openai/gpt-oss-120b`
 
-1. **Probabilità condizionata** `03:41` · _definizione_
-   P(A|B) = P(A ∩ B) / P(B), definita solo quando P(B) > 0.
+2. **Definizione di versamento archivistico** `02:39` · _definizione_
+   Il versamento rappresenta il trasferimento della responsabilità delle serie archivistiche dagli uffici dell'amministrazione attiva (statali, amministrativi e giudiziari) all'amministrazione archivistica che afferisce al Ministero dei beni culturali.
 
-   > “la probabilità condizionata di A dato B è la probabilità di A e B diviso la probabilità di B”
+   > “I versamenti sono questi trasferimenti di responsabilità di serie archivistiche dalla responsabilità dell'amministrazione attiva, degli uffici statali, amministrative, giudiziali, all'amministrazione archivistica”
 
-2. **Teorema di Bayes** `12:34` · _formula_
-   P(A|B) = P(B|A) · P(A) / P(B). Il docente ha detto che sarà all'esame.
+3. **Termine ordinario dei 40 anni per i versamenti** `07:41` · _procedura_
+   Secondo la normativa vigente, i versamenti dei documenti conservati negli archivi di deposito delle amministrazioni attive verso gli Archivi di Stato o l'Archivio Centrale dello Stato devono avvenire di norma 40 anni dopo l'esaurimento degli affari relativi.
 
-   > “ora il teorema di Bayes, che vi chiederò sicuramente all'esame”
+   > “la legge prescite 40 anni dopo l'esaurimento degli affari. cioè prima i documenti stanno negli archivi di deposito”
+
+6. **Segreto funzionale** `44:38` · _definizione_
+   Il segreto funzionale è un tipo di segreto imposto dal presidente e dalla commissione parlamentare d'inchiesta sulla produzione documentaria, ma non è previsto da una norma di diritto positivo; è distinto dal segreto d'ufficio, che è disciplinato dal codice penale e da sanzioni amministrative.
+
+   > “questo tipo di segreto che viene posto dal Presidente e dalla Commissione parlamentare d'inchiesta sulla documentazione prodotta è un segreto funzionale... non esiste una norma di diritto positivo che parli di questo segreto funzionale”
 ...
 ```
 
-_Example output, shortened._
+_Real output, three of the eight points shown. 9 of the 69 points the model proposed were dropped because their quote
+was not in the recording._
 
 ## Web demo
 
-No install needed: upload a lecture or paste a link in the [web demo](demo/) (Italian interface), built with Gradio
-and ready for Hugging Face Spaces. The same code runs locally with `python demo/app.py`.
+A small web interface (Gradio, Italian) is in [`demo/`](demo/): upload a lecture or paste a link, choose how many
+points, download the notes. It runs locally, and is ready for Hugging Face Spaces:
+
+```bash
+pip install -r demo/requirements.txt
+GEMINI_API_KEY=... GROQ_API_KEY=... python demo/app.py      # http://localhost:7860
+```
 
 ![distillo web demo: a lecture on the left, the key points with timestamps and quotes on the right](docs/demo-screenshot.png)
 
@@ -93,7 +107,9 @@ export GROQ_API_KEY=...
 
 With both keys, `--provider auto` (the default) uses Gemini (`gemini-3.6-flash`) and moves to Groq
 (`openai/gpt-oss-120b`) when Gemini is overloaded, rate limited or out of quota. Groq's free tier allows 8,000 tokens
-per minute, so distillo sends it smaller pieces, one at a time: a 40-minute lecture takes about two minutes. With `ANTHROPIC_API_KEY` set, Claude is added at the end of the chain. You can also pick one explicitly:
+per minute, so distillo sends it smaller pieces, one at a time: a 40-minute lecture takes about two minutes.
+
+With `ANTHROPIC_API_KEY` set, Claude is added at the end of the chain. You can also pick a provider explicitly:
 
 ```bash
 distillo talk.mp3 --provider anthropic                       # claude-opus-5-5
@@ -161,10 +177,11 @@ of points or another output format costs nothing. `--no-cache` forces fresh answ
 
 - [x] v0.1: files and subtitles, Whisper (Groq or local), grounded points, density, merge, Markdown/JSON, free providers with fallback
 - [x] v0.2: links (YouTube and other sites, captions when available), automatic compression and splitting for Groq
-- [ ] v0.2.x: chapters for long recordings
-- [ ] v0.3: Anki deck export and self-test questions
-- [ ] v0.4: `--merge` several lectures into one course revision sheet
-- [x] Web demo (Gradio), ready for Hugging Face Spaces
+- [x] Web demo (Gradio, Italian interface)
+- [ ] Hosted demo on Hugging Face Spaces
+- [ ] Chapters for long recordings
+- [ ] Anki deck export and self-test questions
+- [ ] `--merge` several lectures into one course revision sheet
 - [ ] v1.0: PyPI release
 
 ## Contributing
