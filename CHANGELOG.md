@@ -1,6 +1,8 @@
 # Changelog
 
-## 0.2.0 (unreleased)
+## 0.2.0 (2026-11-09)
+
+First release on PyPI: `pipx install distillo`.
 
 - Web demo in `demo/` (Gradio, Italian interface): upload or link, number of points, language, downloads; shared
   free-tier keys with a per-visitor limit, or the visitor's own keys for unlimited use.

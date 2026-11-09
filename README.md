@@ -9,8 +9,9 @@ key points: definitions, formulas, facts, procedures and warnings. You choose ho
 review, 30 for a full revision sheet. It runs **free** on the Gemini and Groq free tiers, or **fully offline**.
 
 [![CI](https://github.com/AndreaAcanfora/distillo/actions/workflows/ci.yml/badge.svg)](https://github.com/AndreaAcanfora/distillo/actions/workflows/ci.yml)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/distillo)](https://pypi.org/project/distillo/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)](https://github.com/AndreaAcanfora/distillo/blob/master/pyproject.toml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/AndreaAcanfora/distillo/blob/master/LICENSE)
 [![Donate with PayPal](https://img.shields.io/badge/donate-PayPal-00457C?logo=paypal)](https://www.paypal.com/paypalme/AndreaAca)
 
 </div>
@@ -51,7 +52,7 @@ was not in the recording._
 
 ## Web demo
 
-A small web interface (Gradio, Italian) is in [`demo/`](demo/): upload a lecture or paste a link, choose how many
+A small web interface (Gradio, Italian) is in [`demo/`](https://github.com/AndreaAcanfora/distillo/tree/master/demo): upload a lecture or paste a link, choose how many
 points, download the notes. It runs locally, and is ready for Hugging Face Spaces:
 
 ```bash
@@ -59,7 +60,7 @@ pip install -r demo/requirements.txt
 GEMINI_API_KEY=... GROQ_API_KEY=... python demo/app.py      # http://localhost:7860
 ```
 
-![distillo web demo: a lecture on the left, the key points with timestamps and quotes on the right](docs/demo-screenshot.png)
+![distillo web demo: a lecture on the left, the key points with timestamps and quotes on the right](https://raw.githubusercontent.com/AndreaAcanfora/distillo/master/docs/demo-screenshot.png)
 
 ## Why another summarizer?
 
@@ -80,11 +81,11 @@ Most AI summarizers give you a paragraph you can't check. distillo is built for 
 ## Install
 
 ```bash
-pipx install git+https://github.com/AndreaAcanfora/distillo              # or: uv tool install git+https://...
-pipx install "distillo[local] @ git+https://github.com/AndreaAcanfora/distillo"   # + offline transcription
+pipx install distillo              # or: uv tool install distillo
+pipx install "distillo[local]"     # + offline transcription
 ```
 
-A PyPI release (`pipx install distillo`) is planned for v1.0. From source:
+From source:
 
 ```bash
 git clone https://github.com/AndreaAcanfora/distillo && cd distillo
@@ -178,15 +179,15 @@ of points or another output format costs nothing. `--no-cache` forces fresh answ
 - [x] v0.1: files and subtitles, Whisper (Groq or local), grounded points, density, merge, Markdown/JSON, free providers with fallback
 - [x] v0.2: links (YouTube and other sites, captions when available), automatic compression and splitting for Groq
 - [x] Web demo (Gradio, Italian interface)
+- [x] PyPI release
 - [ ] Hosted demo on Hugging Face Spaces
 - [ ] Chapters for long recordings
 - [ ] Anki deck export and self-test questions
 - [ ] `--merge` several lectures into one course revision sheet
-- [ ] v1.0: PyPI release
 
 ## Contributing
 
-Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md): the test suite needs no API key.
+Issues and pull requests are welcome. See [CONTRIBUTING.md](https://github.com/AndreaAcanfora/distillo/blob/master/CONTRIBUTING.md): the test suite needs no API key.
 
 ## Support
 
@@ -195,4 +196,4 @@ distillo is free and open source. If it saves you hours of re-watching lectures,
 
 ## License
 
-[MIT](LICENSE) © Andrea Acanfora
+[MIT](https://github.com/AndreaAcanfora/distillo/blob/master/LICENSE) © Andrea Acanfora
