@@ -1,0 +1,53 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to build and publish again, e.g. v0.2.0
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: astral-sh/setup-uv@v6
+      - name: Check that the tag matches the version
+        run: test "${TAG#v}" = "$(uv version --short)"
+      - run: uv build
+      - run: uvx twine check dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # Skipped when the release exists (publishing an existing tag again).
+        run: gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" dist/* --title "$TAG" --generate-notes
+
+  pypi:
+    # Trusted publishing: PyPI trusts this workflow and the "pypi" environment, no token.
+    # Runs only when the repository variable PYPI_PUBLISH is set to true.
+    if: vars.PYPI_PUBLISH == 'true'
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
